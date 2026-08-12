@@ -1,0 +1,45 @@
+{
+  "name": "administratum-88k-backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Administratum 88k - Petition Workflow Engine",
+  "scripts": {
+    "build": "nest build",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:prod": "node dist/main",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "seed": "ts-node prisma/seed.ts",
+    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix"
+  },
+  "dependencies": {
+    "@nestjs/bullmq": "^10.2.3",
+    "@nestjs/common": "^10.4.4",
+    "@nestjs/config": "^3.3.0",
+    "@nestjs/core": "^10.4.4",
+    "@nestjs/mapped-types": "^2.0.6",
+    "@nestjs/platform-express": "^10.4.4",
+    "@nestjs/schedule": "^4.1.1",
+    "@prisma/client": "^5.20.0",
+    "bullmq": "^5.15.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "ioredis": "^5.4.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.4.5",
+    "@nestjs/schematics": "^10.2.3",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.7.4",
+    "prisma": "^5.20.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.2"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  }
+}

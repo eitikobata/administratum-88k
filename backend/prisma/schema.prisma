@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PetitionState {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+enum PetitionImpact {
+  LOW
+  HIGH
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+}
+
+model Petitioner {
+  id        String     @id @default(uuid())
+  name      String
+  email     String     @unique
+  createdAt DateTime   @default(now())
+  petitions Petition[]
+
+  @@map("petitioners")
+}
+
+model Approver {
+  id        String     @id @default(uuid())
+  name      String
+  email     String     @unique
+  createdAt DateTime   @default(now())
+  approvals Approval[]
+
+  @@map("approvers")
+}
+
+model Petition {
+  id     String @id @default(uuid())
+  type   String
+  impact PetitionImpact
+  state  PetitionState  @default(DRAFT)
+
+  // Free-form data about the request itself (e.g. which planet, how many units).
+  // Kept as JSON on purpose: the workflow engine doesn't need to know the shape
+  // of every petition type, only its state and impact.
+  payload Json?
+
+  // How many APPROVED decisions this petition needs before it can move to APPROVED.
+  // Set once at submission time based on impact (LOW = 1, HIGH = 2).
+  requiredApprovals Int @default(1)
+
+  // Deadline used by the expiry sweep job. Null while still in DRAFT.
+  deadlineAt DateTime?
+
+  petitionerId String
+  petitioner   Petitioner @relation(fields: [petitionerId], references: [id])
+
+  approvals Approval[]
+  history   StateHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([state])
+  @@index([deadlineAt])
+  @@map("petitions")
+}
+
+model Approval {
+  id       String           @id @default(uuid())
+  decision ApprovalDecision
+  comment  String?
+
+  petitionId String
+  petition   Petition @relation(fields: [petitionId], references: [id])
+
+  approverId String
+  approver   Approver @relation(fields: [approverId], references: [id])
+
+  decidedAt DateTime @default(now())
+
+  // The same approver can't cast two decisions on the same petition.
+  @@unique([petitionId, approverId])
+  @@map("approvals")
+}
+
+model StateHistory {
+  id String @id @default(uuid())
+
+  petitionId String
+  petition   Petition @relation(fields: [petitionId], references: [id])
+
+  fromState PetitionState?
+  toState   PetitionState
+  reason    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([petitionId])
+  @@map("state_history")
+}
