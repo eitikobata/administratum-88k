@@ -8,5 +8,6 @@ import { QueueModule } from '../queue/queue.module';
   imports: [WorkflowModule, QueueModule],
   controllers: [PetitionsController],
   providers: [PetitionsService],
+  exports: [PetitionsService],
 })
 export class PetitionsModule {}

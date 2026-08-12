@@ -5,6 +5,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { WorkflowModule } from './workflow/workflow.module';
 import { QueueModule } from './queue/queue.module';
 import { RealtimeModule } from './realtime/realtime.module';
+import { SimulatorModule } from './simulator/simulator.module';
 import { PetitionsModule } from './petitions/petitions.module';
 import { PetitionersModule } from './petitioners/petitioners.module';
 import { ApproversModule } from './approvers/approvers.module';
@@ -22,6 +23,7 @@ import { ApproversModule } from './approvers/approvers.module';
     PetitionsModule,
     PetitionersModule,
     ApproversModule,
+    SimulatorModule,
   ],
 })
 export class AppModule {}

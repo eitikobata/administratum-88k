@@ -62,6 +62,13 @@ model Petition {
   // Set once at submission time based on impact (LOW = 1, HIGH = 2).
   requiredApprovals Int @default(1)
 
+  // True only for petitions created by the background simulator (see
+  // src/simulator). Real, visitor-filed petitions are never marked this
+  // way and are never auto-deleted — only simulated, closed-out petitions
+  // are eligible for cleanup once they're old enough. This is the switch
+  // that keeps the demo "alive" without ever touching real activity.
+  simulated Boolean @default(false)
+
   // Deadline used by the expiry sweep job. Null while still in DRAFT.
   deadlineAt DateTime?
 
@@ -85,7 +92,7 @@ model Approval {
   comment  String?
 
   petitionId String
-  petition   Petition @relation(fields: [petitionId], references: [id])
+  petition   Petition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
 
   approverId String
   approver   Approver @relation(fields: [approverId], references: [id])
@@ -101,7 +108,7 @@ model StateHistory {
   id String @id @default(uuid())
 
   petitionId String
-  petition   Petition @relation(fields: [petitionId], references: [id])
+  petition   Petition @relation(fields: [petitionId], references: [id], onDelete: Cascade)
 
   fromState PetitionState?
   toState   PetitionState

@@ -28,7 +28,7 @@ export class PetitionsService {
     private readonly queueProducer: PetitionQueueProducer,
   ) {}
 
-  async create(dto: CreatePetitionDto) {
+  async create(dto: CreatePetitionDto, simulated = false) {
     return this.prisma.petition.create({
       data: {
         type: dto.type,
@@ -36,6 +36,7 @@ export class PetitionsService {
         payload: dto.payload as Prisma.InputJsonValue | undefined,
         petitionerId: dto.petitionerId,
         requiredApprovals: REQUIRED_APPROVALS[dto.impact],
+        simulated,
       },
     });
   }
