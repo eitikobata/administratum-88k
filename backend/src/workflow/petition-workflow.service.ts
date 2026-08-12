@@ -5,15 +5,20 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { ApprovalDecision, Petition, PetitionState } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { assertTransition } from '../common/state-machine/petition-state-machine';
+import { PETITION_UPDATED_EVENT } from '../realtime/realtime.constants';
 
 @Injectable()
 export class PetitionWorkflowService {
   private readonly logger = new Logger(PetitionWorkflowService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   private async findOrThrow(petitionId: string): Promise<Petition> {
     const petition = await this.prisma.petition.findUnique({
@@ -57,6 +62,19 @@ export class PetitionWorkflowService {
     this.logger.log(
       `Petition ${petitionId}: ${petition.state} -> ${toState}${reason ? ` (${reason})` : ''}`,
     );
+
+    // The workflow service doesn't know or care whether anyone is
+    // listening. Whatever needs to react to a state change (right now:
+    // the WebSocket gateway; later: maybe an audit log or a notifier)
+    // subscribes to this event on its own, without this file ever
+    // importing it. Same decoupling pattern used in Nexus Dispatch.
+    this.eventEmitter.emit(PETITION_UPDATED_EVENT, {
+      petitionId,
+      fromState: petition.state,
+      toState,
+      reason,
+    });
+
     return updated;
   }
 
