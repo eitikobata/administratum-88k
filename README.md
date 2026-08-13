@@ -63,6 +63,18 @@ A ServiceNow-inspired approval engine that turns a request into a formal state-m
 - **Early-exit approval logic** — a HIGH-impact Petition needs two approvals to pass, but a single rejection ends it immediately. The system never makes a second Approver vote on something that's already decided.
 - **Decoupled real-time layer** — the workflow service has no idea a WebSocket gateway exists. It emits a domain event through EventEmitter2 after every transition; the gateway subscribes independently and rebroadcasts to every connected browser. Same separation-of-concerns pattern used in Nexus Dispatch, applied to a simpler transport.
 - **Dynamic approver/petitioner identity, no hardcoding** — both consoles pull their dropdowns live from the database (`GET /approvers`, `GET /petitioners`) instead of a fixed list baked into the frontend, so registering someone new in the API makes them usable in the UI with no redeploy.
+- **A self-sustaining, self-pruning demo** — a background simulator files and decides a handful of fictional petitions on a long interval (default 15 min) so the public demo always has something moving, without a constant stream of fake noise. A separate daily cleanup job then removes only simulated petitions that are closed and past a configurable age — real, visitor-filed activity is never touched by either job. See [Simulator & cleanup](#simulator--cleanup) below.
+
+## Simulator & cleanup
+
+Unlike the other projects in this portfolio, Administratum 88k has no reset-and-reseed self-heal. That's a deliberate choice, not an oversight: a bureaucratic archive that resets itself would undercut the whole premise — the point of a record is that it doesn't disappear. Instead, two independent background jobs keep the public demo alive without ever touching real activity:
+
+- **Simulator tick** (default every 15 min) — files one fictional petition from a small fixed cast of simulated petitioners, and casts a decision (mostly approvals, occasionally a rejection) on any simulated petition still waiting on one. It reuses the exact same `PetitionsService` code path a real visitor's click would hit — there's no separate, parallel shortcut that could drift from the real flow.
+- **Cleanup sweep** (default once every 24h) — deletes simulated petitions that are closed (`APPROVED`/`REJECTED`/`EXPIRED`) *and* have been sitting closed for longer than a configurable age (default 3 days). Approvals and state history cascade-delete automatically alongside the petition.
+
+Every petition the simulator creates is flagged `simulated: true` in the database — a flag no public endpoint ever sets. That flag is the entire safeguard: **a real, visitor-filed petition is never eligible for cleanup, no matter how old or how long it's been closed.** The archive of real activity only ever grows; only the synthetic noise gets pruned.
+
+The simulator is off by default (`SIMULATOR_ENABLED=false`) so a plain local checkout never gets synthetic data cluttering a dev database. Production sets it to `true`.
 
 ## Technical decisions & trade-offs
 
@@ -71,6 +83,7 @@ A ServiceNow-inspired approval engine that turns a request into a formal state-m
 - **Early-exit rejection over always collecting every required vote** — waiting for a second Approver's vote on a Petition that's already been rejected would cost that Approver real effort for a decision that can no longer change the outcome. The first rejection closes the case.
 - **EventEmitter2 + WebSocket gateway over injecting the gateway into the workflow service directly** — same reasoning as Nexus Dispatch's transport/domain separation: the workflow service emitting a plain domain event, with no reference to Socket.IO, means a future listener (an audit log, a notifier) can be added without ever touching the file that owns business logic.
 - **Full re-fetch on any WebSocket event over patching individual records client-side** — merging partial updates into nested client state (a Petition with its approvals and history) gets fiddly fast and easy to get subtly wrong. Re-querying the whole list on any change is simpler to reason about and, at this scale, cheap enough not to matter.
+- **A `simulated` boolean flag over deleting-and-reseeding like the other projects** — the other portfolio projects reset their entire dataset periodically because their premise is a live operational feed, where stale demo state is actively misleading. Administratum 88k's premise is the opposite: a permanent bureaucratic record. Flagging only the synthetic petitions and pruning exclusively those preserves that premise while still keeping the public demo visibly active.
 
 ## Known limitations (intentional, not overlooked)
 
@@ -131,6 +144,10 @@ Minimum environment variables (`backend/.env`):
 | `FRONTEND_URL` | Allowed CORS origin (used by both REST and the WebSocket gateway) |
 | `PETITION_DEADLINE_HOURS` | Hours a Petition has to be decided before the expiry sweep closes it |
 | `EXPIRY_SWEEP_INTERVAL_MS` | How often the expiry sweep job runs |
+| `SIMULATOR_ENABLED` | `true`/`false` — turns the background simulator on (production only by default) |
+| `SIMULATOR_TICK_INTERVAL_MS` | How often the simulator files a new petition and decides pending ones (default 15 min) |
+| `SIMULATOR_CLEANUP_INTERVAL_MS` | How often the cleanup sweep runs (default once/day) |
+| `SIMULATOR_CLEANUP_MAX_AGE_DAYS` | How many days a simulated petition stays closed before it's eligible for cleanup (default 3) |
 
 Frontend (`frontend/.env.local`): `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_WS_URL`.
 
